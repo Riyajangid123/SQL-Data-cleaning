@@ -1,0 +1,56 @@
+SELECT * FROM customers.netflix_customer_churn;
+#Q1 Retrieve all customer IDs and their favorite genres.
+select customer_id,favorite_genre from customers.netflix_customer_churn;
+#Q2 Find the total number of customers.
+select count(customer_id) as total_count from customers.netflix_customer_churn;
+#Q3 List all unique subscription types.
+select distinct subscription_type from customers.netflix_customer_churn;
+#Q4 Find all male customers who have watched more than 100 hours.
+select * from customers.netflix_customer_churn where gender="male" and watch_hours>100;
+#Q5 Calculate the average monthly fee across all customers.
+select avg(monthly_fee) as avg_month_fee from customers.netflix_customer_churn;
+#Q6 Find the number of churned customers for each region.
+select region,count(churned) as total_churned from customers.netflix_customer_churn
+where churned=1 group by region;
+#Q7 Identify the top 3 favorite genres based on the number of customers.
+select favorite_genre,count(customer_id) as no_of_customer from 
+customers.netflix_customer_churn group by favorite_genre order by no_of_customer desc limit 3;
+#Q8 Calculate the average watch_hours for each gender and subscription_type combination.
+select gender,subscription_type,avg(watch_hours) as avg_watch_hours from customers.netflix_customer_churn 
+group by gender,subscription_type order by gender,subscription_type;
+#Q9 Find customers who have not logged in for more than 30 days and are still subscribed (i.e., not churned).
+select customer_id,last_login_days from customers.netflix_customer_churn where last_login_days>30 and churned=0;
+#Q10 Determine the monthly_fee distribution by device. Show the minimum, maximum, and average monthly_fee for each device.
+select device,monthly_fee,max(monthly_fee) as max_monthly_fee,min(monthly_fee) as min_monthly_fee,
+avg(monthly_fee) as avg_monthly_fee from customers.netflix_customer_churn group by device,monthly_fee
+order by  device,monthly_fee;
+#Q11 Identify customers who are in the top 10% of watch_hours within their region.
+select e.* from 
+(select customer_id,round(cume_dist()over(partition by region order by watch_hours desc)*100) as top from
+customers.netflix_customer_churn) as e where e.top<=10;
+#Q12 Calculate the churn rate for each subscription_type.
+select subscription_type,avg(churned)*100 as churn_rate from customers.netflix_customer_churn
+ group by subscription_type;
+#Q13 Find the customer_ID of the customer who has the highest avg_watch_time_per_day for each favourite_genre.
+select e.* from 
+(select customer_id,favorite_genre,row_number()over(partition by favorite_genre order by avg_watch_time_per_day desc)
+as rn from customers.netflix_customer_churn) as e where e.rn=1; 
+#Q14 For each region and gender, find the average monthly_fee of churned customers compared to non-churned customers.
+with churn as 
+(select region,gender,avg(monthly_fee) as avg_month_fee_churn from customers.netflix_customer_churn
+where churned=1 group by region,gender order by region,gender),
+non_churn as (select region,gender,avg(monthly_fee) as avg_month_fee_non_churn from 
+customers.netflix_customer_churn where churned=0 group by region,gender order by region,gender)
+select c.region,c.gender,c.avg_month_fee_churn,nc.avg_month_fee_non_churn from churn as c join
+non_churn as nc on c.region=nc.region and c.gender=nc.gender;
+#Q15 Identify customer_IDs who have more than 3 number_of_profiles but less than avg_watch_time_per_day of 2 hours, and are in the 'North' region.
+select customer_id,number_of_profiles,avg_watch_time_per_day from customers.netflix_customer_churn
+where number_of_profiles>3 and avg_watch_time_per_day<2 and region in ("north");
+#Q16 Find the payment method that has the highest average monthly_fee among churned customers.
+select payment_method,avg(monthly_fee) as avg_month_fee from customers.netflix_customer_churn
+where churned=1 group by payment_method order by avg_month_fee desc limit 1;
+#Q17 Determine the percentage of customers who are 'young' (age < 30) and 'old' (age >= 60) for each subscription_type.
+select subscription_type,
+avg(case when age<30 then 1 else 0 end) as young,
+avg(case when age>=60 then 1 else 0 end) as old from customers.netflix_customer_churn
+group by subscription_type order by subscription_type;
